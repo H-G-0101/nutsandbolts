@@ -184,6 +184,7 @@ self.C3_GetObjectRefTable = function () {
 		C3.Plugins.Text.Acts.SetX,
 		C3.Plugins.Text.Exps.X,
 		C3.Plugins.Text.Exps.Text,
+		C3.Plugins.System.Exps.layoutname,
 		C3.Plugins.Sprite.Cnds.HasParent,
 		C3.Plugins.System.Exps.len,
 		C3.Plugins.Text.Acts.SetFontSize,

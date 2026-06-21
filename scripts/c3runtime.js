@@ -2030,6 +2030,7 @@ self.C3_ExpressionFuncs = [
 		},
 		() => "Complete_Popup",
 		() => "Gems Popup (CiDi)",
+		() => "2.Home",
 		() => "1",
 		p => {
 			const v0 = p._GetNode(0).GetVar();
