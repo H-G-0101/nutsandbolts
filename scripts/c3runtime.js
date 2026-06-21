@@ -2005,6 +2005,16 @@ self.C3_ExpressionFuncs = [
 		},
 		() => "Complete_Popup",
 		() => "Gems Popup (CiDi)",
+		p => {
+			const n0 = p._GetNode(0);
+			const n1 = p._GetNode(1);
+			return () => add(n0.ExpObject(4, 0), n1.ExpInstVar());
+		},
+		p => {
+			const v0 = p._GetNode(0).GetVar();
+			const n1 = p._GetNode(1);
+			return () => and((and("", v0.GetValue()) + "/"), n1.ExpInstVar());
+		},
 		() => "GameLevel",
 		() => "gamelevel",
 		() => "Background_Size",
