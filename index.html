@@ -34,9 +34,6 @@ if (location.protocol.substr(0, 4) === "file")
 }
 </script>
 	
-	<!-- CiDi Bridge: sequestra o Mobile Advert e roteia rewarded -> CiDi (precisa rodar antes dos modulos) -->
-	<script src="cidi-bridge.js"></script>
-
 	<noscript>
 		<div id="notSupportedWrap">
 			<h2 id="notSupportedTitle">This content requires JavaScript</h2>
@@ -46,9 +43,9 @@ if (location.protocol.substr(0, 4) === "file")
 	<script src="scripts/modernjscheck.js"></script>
 	<script src="scripts/supportcheck.js"></script>
 	<script src="scripts/offlineclient.js" type="module"></script>
+		<script src="cidi-bridge.js"></script>
 	<script src="scripts/main.js" type="module"></script>
-	<!-- service worker desligado no build CiDi (evita cache velho no Pi Browser) -->
-	<!-- <script src="scripts/register-sw.js" type="module"></script> -->
+	<!-- service worker desligado (CiDi build) -->
 
 </body> 
 </html>
