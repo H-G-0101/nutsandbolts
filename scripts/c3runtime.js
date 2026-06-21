@@ -1883,6 +1883,7 @@ self.C3_ExpressionFuncs = [
 			const f0 = p._GetNode(0).GetBoundMethod();
 			return () => (f0("BG") - 450);
 		},
+		() => "gems",
 		() => 50,
 		() => "Setting/Pause_Popup",
 		() => "Home",
@@ -2003,7 +2004,7 @@ self.C3_ExpressionFuncs = [
 			return () => add(n0.ExpObject(6, 0), 3);
 		},
 		() => "Complete_Popup",
-		() => "GemAd_B (CiDi diamantes)",
+		() => "Gems Popup (CiDi)",
 		() => "GameLevel",
 		() => "gamelevel",
 		() => "Background_Size",
