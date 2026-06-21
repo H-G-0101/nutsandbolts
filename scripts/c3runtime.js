@@ -1628,6 +1628,35 @@ self.C3_ExpressionFuncs = [
 		() => "complete2",
 		() => "compelete2",
 		() => "popup",
+		() => "gemprog",
+		p => {
+			const v0 = p._GetNode(0).GetVar();
+			return () => (-v0.GetValue());
+		},
+		p => {
+			const f0 = p._GetNode(0).GetBoundMethod();
+			const f1 = p._GetNode(1).GetBoundMethod();
+			const f2 = p._GetNode(2).GetBoundMethod();
+			return () => f0(f1(f2(), 0, ","));
+		},
+		p => {
+			const f0 = p._GetNode(0).GetBoundMethod();
+			const f1 = p._GetNode(1).GetBoundMethod();
+			const f2 = p._GetNode(2).GetBoundMethod();
+			return () => f0(f1(f2(), 1, ","));
+		},
+		p => {
+			const f0 = p._GetNode(0).GetBoundMethod();
+			const f1 = p._GetNode(1).GetBoundMethod();
+			const f2 = p._GetNode(2).GetBoundMethod();
+			return () => f0(f1(f2(), 2, ","));
+		},
+		p => {
+			const f0 = p._GetNode(0).GetBoundMethod();
+			const f1 = p._GetNode(1).GetBoundMethod();
+			const f2 = p._GetNode(2).GetBoundMethod();
+			return () => f0(f1(f2(), 3, ","));
+		},
 		() => "OpenSetting_Button",
 		p => {
 			const f0 = p._GetNode(0).GetBoundMethod();
@@ -1752,10 +1781,6 @@ self.C3_ExpressionFuncs = [
 		() => "Screw",
 		() => 315,
 		() => "BoardHole",
-		p => {
-			const v0 = p._GetNode(0).GetVar();
-			return () => (-v0.GetValue());
-		},
 		p => {
 			const v0 = p._GetNode(0).GetVar();
 			const f1 = p._GetNode(1).GetBoundMethod();
@@ -2006,14 +2031,21 @@ self.C3_ExpressionFuncs = [
 		() => "Complete_Popup",
 		() => "Gems Popup (CiDi)",
 		p => {
+			const v0 = p._GetNode(0).GetVar();
+			const n1 = p._GetNode(1);
+			return () => and((and("", v0.GetValue()) + "/"), n1.ExpInstVar());
+		},
+		p => {
 			const n0 = p._GetNode(0);
 			const n1 = p._GetNode(1);
 			return () => add(n0.ExpObject(4, 0), n1.ExpInstVar());
 		},
 		p => {
 			const v0 = p._GetNode(0).GetVar();
-			const n1 = p._GetNode(1);
-			return () => and((and("", v0.GetValue()) + "/"), n1.ExpInstVar());
+			const v1 = p._GetNode(1).GetVar();
+			const v2 = p._GetNode(2).GetVar();
+			const v3 = p._GetNode(3).GetVar();
+			return () => and((and((and((and("", v0.GetValue()) + ","), v1.GetValue()) + ","), v2.GetValue()) + ","), v3.GetValue());
 		},
 		() => "GameLevel",
 		() => "gamelevel",
