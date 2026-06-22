@@ -1836,7 +1836,7 @@ self.C3_ExpressionFuncs = [
 		},
 		() => "complete_bonus",
 		() => "AN3",
-		() => 40,
+		() => 62,
 		p => {
 			const n0 = p._GetNode(0);
 			return () => add(n0.ExpObject(0, 0), 1);
@@ -1847,7 +1847,7 @@ self.C3_ExpressionFuncs = [
 		},
 		p => {
 			const f0 = p._GetNode(0).GetBoundMethod();
-			return () => and("Lv", Math.round(f0(10, 40)));
+			return () => and("Lv", Math.round(f0(10, 62)));
 		},
 		() => "Particle",
 		() => 0.6,
