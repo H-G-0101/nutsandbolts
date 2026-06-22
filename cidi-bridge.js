@@ -19,6 +19,64 @@
   function warn() { try { console.warn.apply(console, [TAG].concat([].slice.call(arguments))); } catch (e) {} }
 
   /* ===================================================================
+     UI  -- indicador "carregando anuncio" (overlay HTML/CSS)
+     =================================================================== */
+  var adUIReady = false, adHideTimer = null;
+  function ensureAdUI() {
+    if (adUIReady || !document.body) return adUIReady;
+    adUIReady = true;
+    var st = document.createElement("style");
+    st.textContent =
+      "#cidi-ad-ov{position:fixed;inset:0;z-index:99990;display:flex;flex-direction:column;" +
+      "align-items:center;justify-content:center;background:rgba(8,10,22,.74);" +
+      "font-family:Arial,Helvetica,sans-serif;color:#fff;opacity:0;visibility:hidden;" +
+      "transition:opacity .18s;pointer-events:none;-webkit-tap-highlight-color:transparent}" +
+      "#cidi-ad-ov.on{opacity:1;visibility:visible;pointer-events:auto}" +
+      "#cidi-ad-ov .sp{width:56px;height:56px;border-radius:50%;border:5px solid rgba(255,255,255,.22);" +
+      "border-top-color:#ffd34d;animation:cidiSpin .8s linear infinite}" +
+      "#cidi-ad-ov.msg .sp{display:none}" +
+      "#cidi-ad-ov .tx{margin-top:18px;font-size:17px;font-weight:bold;letter-spacing:.3px;text-align:center;padding:0 24px}" +
+      "#cidi-ad-ov .sub{margin-top:5px;font-size:12px;opacity:.65}" +
+      "#cidi-ad-ov.msg .sub{display:none}" +
+      "@keyframes cidiSpin{to{transform:rotate(360deg)}}";
+    document.head.appendChild(st);
+    var ov = document.createElement("div");
+    ov.id = "cidi-ad-ov";
+    ov.innerHTML = '<div class="sp"></div><div class="tx" id="cidi-ad-tx">Loading ad\u2026</div><div class="sub">please wait</div>';
+    document.body.appendChild(ov);
+    return true;
+  }
+  function showAdLoading(msg) {
+    try {
+      if (!ensureAdUI()) return;
+      var ov = document.getElementById("cidi-ad-ov"), tx = document.getElementById("cidi-ad-tx");
+      ov.classList.remove("msg");
+      if (tx) tx.textContent = msg || "Loading ad\u2026";
+      ov.classList.add("on");
+      if (adHideTimer) { clearTimeout(adHideTimer); adHideTimer = null; }
+      // recolhe o spinner depois de um tempinho pra nao cobrir o anuncio quando ele abrir
+      adHideTimer = setTimeout(function () { hideAdLoading(); }, 1500);
+    } catch (e) {}
+  }
+  function hideAdLoading() {
+    try {
+      if (adHideTimer) { clearTimeout(adHideTimer); adHideTimer = null; }
+      var ov = document.getElementById("cidi-ad-ov");
+      if (ov) ov.classList.remove("on");
+    } catch (e) {}
+  }
+  function showAdMessage(msg, ms) {
+    try {
+      if (!ensureAdUI()) return;
+      var ov = document.getElementById("cidi-ad-ov"), tx = document.getElementById("cidi-ad-tx");
+      if (tx) tx.textContent = msg || "No ad available";
+      ov.classList.add("msg"); ov.classList.add("on");
+      if (adHideTimer) { clearTimeout(adHideTimer); }
+      adHideTimer = setTimeout(function () { hideAdLoading(); ov.classList.remove("msg"); }, ms || 1600);
+    } catch (e) {}
+  }
+
+  /* ===================================================================
      CONFIG  -- PREENCHER
      =================================================================== */
   // API key do app "Nuts and Bolts" na CiDi (usada pelo LOGIN/proxy).
@@ -100,35 +158,44 @@
     onReward = onReward || function () {};
     onFail   = onFail   || function () {};
 
+    var settled = false;
+    showAdLoading("Loading ad\u2026");                 // <-- indicador ON
+    function grant() { if (settled) return; settled = true; hideAdLoading(); onReward(); }
+    function deny(reason) {
+      if (settled) return; settled = true;
+      hideAdLoading();
+      showAdMessage("No ad available");               // <-- feedback de falha
+      onFail();
+    }
+    var safety = setTimeout(function () { deny("timeout"); }, 30000); // nunca trava
+
     if (self.CiDiSDK && typeof CiDiSDK.showRewardedAd === "function") {
       try {
         CiDiSDK.showRewardedAd() // options.timeout opcional (default 300000ms)
           .then(function (result) {
-            if (result && result.success === true) {
-              log("rewarded SUCCESS");
-              onReward();
-            } else {
-              log("rewarded sem recompensa:", result);
-              onFail();
-            }
+            clearTimeout(safety);
+            if (result && result.success === true) { log("rewarded SUCCESS"); grant(); }
+            else { log("rewarded sem recompensa:", result); deny("no-reward"); }
           })
           .catch(function (err) {
+            clearTimeout(safety);
             warn("rewarded FALHOU:", err && (err.error || err.message || err));
-            onFail();
+            deny("error");
           });
-      } catch (e) { warn("showRewardedAd excecao:", e); onFail(); }
+      } catch (e) { clearTimeout(safety); warn("showRewardedAd excecao:", e); deny("exception"); }
       return;
     }
 
     // SDK ainda nao disponivel:
     if (isDev()) {
-      // Em dev (localhost/file) concede direto p/ voce conseguir testar o fluxo.
+      // Em dev (localhost/file) concede direto, com o spinner aparecendo ~0.8s p/ voce ver o indicador.
       log("DEV: CiDiSDK ausente -> concedendo recompensa p/ teste");
-      onReward();
+      setTimeout(function () { clearTimeout(safety); grant(); }, 800);
     } else {
       // Em producao sem SDK = sem anuncio confiavel -> NAO concede.
+      clearTimeout(safety);
       warn("CiDiSDK ausente em producao -> sem recompensa");
-      onFail();
+      deny("no-sdk");
     }
   }
 
