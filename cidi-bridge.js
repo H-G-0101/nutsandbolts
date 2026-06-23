@@ -216,19 +216,20 @@
       setTimeout(function () { forceResume("deny+250"); }, 250);
       setTimeout(function () { forceResume("deny+700"); }, 700);
     }
-    var safety = setTimeout(function () { deny("timeout"); }, 90000); // so dispara em travamento real (anuncio normal < 90s)
+    // rede de seguranca: so dispara se a promise do SDK NUNCA resolver (travamento real).
+    // fica ACIMA do timeout do SDK (5min) p/ nao competir com o tempo de assistir/fechar o anuncio.
+    var safety = setTimeout(function () { deny("timeout"); }, 360000); // 6 min
 
     // So tenta o anuncio real se o login da CiDi passou (no Pi). Fora do Pi o login
     // nao completa e o showRewardedAd fica pendurado no 'authenticate' -> trava o jogo.
     if (willTryRealAd()) {
       try {
-        CiDiSDK.showRewardedAd({ timeout: 90000 }) // limite do proprio SDK (default era 300000ms)
+        CiDiSDK.showRewardedAd({ timeout: 300000 }) // 5min: tempo do SDK p/ assistir+fechar (nao cortar ad em andamento)
           .then(function (result) {
             clearTimeout(safety);
-            // promise resolveu = anuncio assistido/recompensado.
-            // So nega se a CiDi disser explicitamente que NAO recompensou.
-            if (result && result.success === false) { log("rewarded sem recompensa:", result); deny("no-reward"); }
-            else { log("rewarded SUCCESS", result); grant(); }
+            // doc CiDi: APENAS success === true conta como recompensa; qualquer outra coisa = falha.
+            if (result && result.success === true) { log("rewarded SUCCESS", result); grant(); }
+            else { log("rewarded sem recompensa:", result); deny("no-reward"); }
           })
           .catch(function (err) {
             clearTimeout(safety);
@@ -404,5 +405,5 @@
   setTimeout(buildDebugButton, 4000);
 
   loadCidiSdk();
-  log("pronto [build: resume-v5]. rewarded/video -> CiDi real (key:", CIDI_API_KEY === "CIDI_PLACEHOLDER_KEY" ? "PLACEHOLDER!" : "ok", ")");
+  log("pronto [build: resume-v7]. rewarded/video -> CiDi real (key:", CIDI_API_KEY === "CIDI_PLACEHOLDER_KEY" ? "PLACEHOLDER!" : "ok", ")");
 })();
