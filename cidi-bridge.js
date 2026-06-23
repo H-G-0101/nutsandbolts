@@ -181,7 +181,9 @@
     }
     var safety = setTimeout(function () { deny("timeout"); }, 90000); // so dispara em travamento real (anuncio normal < 90s)
 
-    if (self.CiDiSDK && typeof CiDiSDK.showRewardedAd === "function") {
+    // So tenta o anuncio real se o login da CiDi passou (no Pi). Fora do Pi o login
+    // nao completa e o showRewardedAd fica pendurado no 'authenticate' -> trava o jogo.
+    if (self.CiDiSDK && typeof CiDiSDK.showRewardedAd === "function" && (loggedIn || isDev())) {
       try {
         CiDiSDK.showRewardedAd({ timeout: 90000 }) // limite do proprio SDK (default era 300000ms)
           .then(function (result) {
@@ -206,10 +208,10 @@
       log("DEV: CiDiSDK ausente -> concedendo recompensa p/ teste");
       setTimeout(function () { clearTimeout(safety); grant(); }, 800);
     } else {
-      // Em producao sem SDK = sem anuncio confiavel -> NAO concede.
+      // Producao sem SDK OU sem login da CiDi -> falha rapida (nao pendura o jogo).
       clearTimeout(safety);
-      warn("CiDiSDK ausente em producao -> sem recompensa");
-      deny("no-sdk");
+      warn("sem anuncio: CiDiSDK ausente ou login nao concluido (loggedIn=" + loggedIn + ")");
+      deny("no-sdk-or-login");
     }
   }
 
@@ -357,5 +359,5 @@
   setTimeout(buildDebugButton, 4000);
 
   loadCidiSdk();
-  log("pronto. rewarded/video -> CiDi real (key:", CIDI_API_KEY === "CIDI_PLACEHOLDER_KEY" ? "PLACEHOLDER!" : "ok", ")");
+  log("pronto [build: ad-gate-v3]. rewarded/video -> CiDi real (key:", CIDI_API_KEY === "CIDI_PLACEHOLDER_KEY" ? "PLACEHOLDER!" : "ok", ")");
 })();
