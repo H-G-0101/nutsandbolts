@@ -30,6 +30,33 @@
   function log()  { dbgCapture("l", arguments); try { console.log.apply(console, [TAG].concat([].slice.call(arguments))); } catch (e) {} }
   function warn() { dbgCapture("w", arguments); try { console.warn.apply(console, [TAG].concat([].slice.call(arguments))); } catch (e) {} }
 
+  // Forca o runtime do Construct a "resumir" (sair do estado Suspending) apos o anuncio.
+  // O jogo suspende durante o ad via C3MobileAdvertsAPI.real.suspendRuntime(); se a falha
+  // nao resumir, o jogo trava. Chamamos o resume real defensivamente.
+  function forceResume(where) {
+    var did = [];
+    try {
+      var api = self["C3MobileAdvertsAPI"];
+      if (api) {
+        // o resume e injetado pelo C3 no objeto que _GetApi() retorna; no web isso
+        // e o nosso cidiWeb, mas varremos real/fake/web por seguranca.
+        ["web", "real", "fake"].forEach(function (k) {
+          try {
+            var o = api[k];
+            if (o && typeof o["resumeRuntime"] === "function") { o["resumeRuntime"](); did.push(k); }
+          } catch (e) {}
+        });
+      }
+      // o cidiWeb e o objeto que o C3 enriquece com resumeRuntime (caso o getter o esconda)
+      try {
+        if (typeof cidiWeb !== "undefined" && cidiWeb && typeof cidiWeb["resumeRuntime"] === "function") {
+          cidiWeb["resumeRuntime"](); did.push("cidiWeb");
+        }
+      } catch (e) {}
+    } catch (e) {}
+    log("forceResume(" + where + ") -> " + (did.length ? did.join(",") : "nenhum alvo"));
+  }
+
   /* ===================================================================
      UI  -- indicador "carregando anuncio" (overlay HTML/CSS)
      =================================================================== */
@@ -172,18 +199,28 @@
 
     var settled = false;
     showAdLoading("Loading ad\u2026");                 // <-- indicador ON
-    function grant() { if (settled) return; settled = true; hideAdLoading(); onReward(); }
+    function grant() {
+      if (settled) return; settled = true;
+      hideAdLoading();
+      forceResume("grant");
+      onReward();
+      setTimeout(function () { forceResume("grant+250"); }, 250);
+      setTimeout(function () { forceResume("grant+700"); }, 700);
+    }
     function deny(reason) {
       if (settled) return; settled = true;
       hideAdLoading();
       showAdMessage("No ad available");               // <-- feedback de falha
+      forceResume("deny:" + reason);
       onFail();
+      setTimeout(function () { forceResume("deny+250"); }, 250);
+      setTimeout(function () { forceResume("deny+700"); }, 700);
     }
     var safety = setTimeout(function () { deny("timeout"); }, 90000); // so dispara em travamento real (anuncio normal < 90s)
 
     // So tenta o anuncio real se o login da CiDi passou (no Pi). Fora do Pi o login
     // nao completa e o showRewardedAd fica pendurado no 'authenticate' -> trava o jogo.
-    if (self.CiDiSDK && typeof CiDiSDK.showRewardedAd === "function" && (loggedIn || isDev())) {
+    if (willTryRealAd()) {
       try {
         CiDiSDK.showRewardedAd({ timeout: 90000 }) // limite do proprio SDK (default era 300000ms)
           .then(function (result) {
@@ -221,8 +258,16 @@
   function ok(cb, result) { try { cb(null, result == null ? "ok" : result); } catch (e) {} }
   function fail(cb, msg) { try { cb(msg || "cancelled"); } catch (e) {} }
 
+  function willTryRealAd() {
+    return !!(self.CiDiSDK && typeof CiDiSDK.showRewardedAd === "function" && (loggedIn || isDev()));
+  }
+
   function runReward(cb) {
-    try { if (typeof cidiWeb.suspendRuntime === "function") cidiWeb.suspendRuntime(); } catch (e) {}
+    // So suspende o runtime se o anuncio real vai abrir. No fast-fail (sem SDK/login)
+    // nao suspende -> nada pra destravar depois.
+    if (willTryRealAd()) {
+      try { if (typeof cidiWeb.suspendRuntime === "function") cidiWeb.suspendRuntime(); } catch (e) {}
+    }
     showCidiRewarded(
       function () { ok(cb, REWARD_RESULT); },     // recompensa
       function () { fail(cb, "no-fill"); }         // cancelou / sem fill / erro
@@ -359,5 +404,5 @@
   setTimeout(buildDebugButton, 4000);
 
   loadCidiSdk();
-  log("pronto [build: ad-gate-v3]. rewarded/video -> CiDi real (key:", CIDI_API_KEY === "CIDI_PLACEHOLDER_KEY" ? "PLACEHOLDER!" : "ok", ")");
+  log("pronto [build: resume-v5]. rewarded/video -> CiDi real (key:", CIDI_API_KEY === "CIDI_PLACEHOLDER_KEY" ? "PLACEHOLDER!" : "ok", ")");
 })();
