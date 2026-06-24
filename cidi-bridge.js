@@ -178,7 +178,7 @@
           // login precisa de ?tempToken=... na URL (a plataforma injeta).
           // Em dev/navegador comum nao tem -> falha esperada, seguimos sem login.
           proxyClient.auth.login()
-            .then(function () { loggedIn = true; log("login CiDi OK"); })
+            .then(function () { loggedIn = true; log("login CiDi OK"); startProgressMonitor(); })
             .catch(function (err) {
               loggedIn = false;
               log("login CiDi nao concluido (" + (err && err.code) + ") - normal fora do Pi/sem tempToken");
@@ -188,6 +188,208 @@
     }, function () {
       warn("FALHA ao carregar cidi-proxy-sdk.umd.js (login indisponivel)");
     });
+  }
+
+  /* ===================================================================
+     TASK / EVENT / MEDAL  -- reporte via proxyClient (mesmo client do login)
+     APIs (doc CiDi):
+       task   : proxyClient.report.gameTask({completeTime, metadata})
+       event  : proxyClient.report.tournamentScore({score, reportedAt})
+       medal  : proxyClient.report.medal() / medalOwnership()
+     =================================================================== */
+  function loggedReady() { return !!(proxyClient && loggedIn); }
+
+  function bizDateToday() {
+    var d = new Date(); function p(n){ return (n<10?"0":"")+n; }
+    return "" + d.getFullYear() + p(d.getMonth()+1) + p(d.getDate());
+  }
+
+  // status das 3 SDKs p/ exibir no painel DBG
+  var cidiStat = { task: "—", event: "—", medal: "—" };
+  function hhmmss() { return new Date().toTimeString().substr(0, 8); }
+  function setStat(k, msg) { cidiStat[k] = msg + " (" + hhmmss() + ")"; try { if (typeof refreshDbgPanel === "function") refreshDbgPanel(); } catch (e) {} }
+
+  var CidiReport = {
+    task: function (metadata, onOk) {
+      if (!loggedReady()) { warn("task: sem login"); setStat("task", "sem login"); return; }
+      setStat("task", "enviando…");
+      try {
+        proxyClient.report.gameTask({
+          completeTime: Math.floor(Date.now()/1000),
+          metadata: (typeof metadata === "string") ? metadata : JSON.stringify(metadata || {})
+        }).then(function(){ log("task diaria reportada"); setStat("task", "ENVIADA ok"); if (onOk) onOk(); })
+          .catch(function(e){ var c=e&&(e.code||e.message); warn("task falhou:", c); setStat("task", "FALHA: "+c); });
+      } catch (e) { warn("task excecao:", e); setStat("task", "EXCECAO"); }
+    },
+    tournament: function (score, onOk) {
+      if (!loggedReady()) { warn("tournament: sem login"); setStat("event", "sem login"); return; }
+      setStat("event", "enviando score "+score+"…");
+      try {
+        proxyClient.report.tournamentScore({
+          score: String(score), reportedAt: Math.floor(Date.now()/1000)
+        }).then(function(){ log("tournament score reportado:", score); setStat("event", "ENVIADO score="+score); if (onOk) onOk(); })
+          .catch(function(e){ var c=e&&(e.code||e.message); warn("tournament falhou:", c); setStat("event", "FALHA: "+c); });
+      } catch (e) { warn("tournament excecao:", e); setStat("event", "EXCECAO"); }
+    },
+    medalClaim: function (onOk) {
+      if (!loggedReady()) { warn("medal: sem login"); setStat("medal", "sem login"); return; }
+      setStat("medal", "reivindicando…");
+      try {
+        proxyClient.report.medal()
+          .then(function(){ log("medalha reivindicada"); setStat("medal", "REIVINDICADA ok"); if (onOk) onOk(); })
+          .catch(function(e){ var c=e&&(e.code||e.message); warn("medal falhou:", c); setStat("medal", "FALHA: "+c); });
+      } catch (e) { warn("medal excecao:", e); setStat("medal", "EXCECAO"); }
+    },
+    medalOwned: function (cb) {
+      if (!loggedReady()) { if (cb) cb(null); return; }
+      try {
+        proxyClient.report.medalOwnership()
+          .then(function(r){
+            // doc CiDi: { owned: boolean }. defensivo p/ outros formatos.
+            var owned = (r === true) || !!(r && (r.owned === true || r.owned === 1 || r.hasOwned === true));
+            setStat("medal", "owned=" + owned); if (cb) cb(owned);
+          })
+          .catch(function(e){ warn("medalOwnership falhou:", e && (e.code||e.message)); if (cb) cb(null); });
+      } catch (e) { warn("medalOwnership excecao:", e); if (cb) cb(null); }
+    }
+  };
+
+  // expoe p/ chamadas manuais (Browser.ExecuteJavaScript / botoes DBG)
+  self.CidiBridge = self.CidiBridge || {};
+  self.CidiBridge.reportTask       = function(m){ CidiReport.task(m); };
+  self.CidiBridge.reportTournament = function(s){ CidiReport.tournament(s); };
+  self.CidiBridge.claimMedal       = function(){ CidiReport.medalClaim(); };
+  self.CidiBridge.checkMedal       = function(cb){ CidiReport.medalOwned(cb); };
+
+  /* --- monitor de progresso: detecta vitoria de nivel pelo storage do C3 ---
+     O plugin LocalStorage do C3 grava via localforage no IndexedDB:
+       banco = "c3-localstorage-" + ProjectUniqueId , store = "keyvaluepairs"
+     nivel do jogador = Arr_PlayerData.At(0,0) (chave "playerdata", c2array). */
+  var MEDAL_LEVEL = 2;             // condicao da medalha. TESTE=2 -> depois trocar p/ 100
+  var IDB_DB_FALLBACK = "c3-localstorage-91bvv5ns4ka";
+  var IDB_STORE = "keyvaluepairs";
+  var idbDbName = null;
+  var lastLevelSeen = null;
+  var progressTimer = null;
+
+  function resolveDbName(cb) {
+    if (idbDbName) { cb(idbDbName); return; }
+    try {
+      if (self.indexedDB && indexedDB.databases) {
+        indexedDB.databases().then(function (list) {
+          var hit = (list || []).map(function (x) { return x && x.name; })
+            .filter(function (n) { return n && n.indexOf("c3-localstorage-") === 0; });
+          idbDbName = hit[0] || IDB_DB_FALLBACK; cb(idbDbName);
+        }).catch(function () { idbDbName = IDB_DB_FALLBACK; cb(idbDbName); });
+      } else { idbDbName = IDB_DB_FALLBACK; cb(idbDbName); }
+    } catch (e) { idbDbName = IDB_DB_FALLBACK; cb(idbDbName); }
+  }
+
+  function idbGetPlayerdata(cb) {            // cb(raw | null)
+    resolveDbName(function (name) {
+      try {
+        var req = indexedDB.open(name);
+        req.onsuccess = function () {
+          var db = req.result;
+          try {
+            if (!db.objectStoreNames.contains(IDB_STORE)) { cb(null); db.close(); return; }
+            var g = db.transaction([IDB_STORE], "readonly").objectStore(IDB_STORE).get("playerdata");
+            g.onsuccess = function () { cb(g.result != null ? g.result : null); try { db.close(); } catch (e) {} };
+            g.onerror   = function () { cb(null); try { db.close(); } catch (e) {} };
+          } catch (e) { cb(null); try { db.close(); } catch (_) {} }
+        };
+        req.onerror = function () { cb(null); };
+      } catch (e) { cb(null); }
+    });
+  }
+
+  function readPlayerLevel(cb) {             // cb(level:number | null)
+    idbGetPlayerdata(function (raw) {
+      if (raw == null) { cb(null); return; }
+      try {
+        var obj = (typeof raw === "string") ? JSON.parse(raw) : raw; // c2array
+        if (obj && obj.data && obj.data[0] && obj.data[0][0] != null) {
+          var v = obj.data[0][0][0];
+          cb((typeof v === "number") ? v : parseInt(v, 10));
+        } else cb(null);
+      } catch (e) { cb(null); }
+    });
+  }
+
+  function tryReportDailyTask(level) {
+    try {
+      var today = bizDateToday();
+      if (self.localStorage && localStorage.getItem("cidi_task_date") === today) return; // ja hoje
+      // grava a data SO no sucesso (senao uma falha trancaria o dia inteiro)
+      CidiReport.task({ level: level }, function () {
+        try { localStorage.setItem("cidi_task_date", today); } catch (e) {}
+      });
+    } catch (e) {}
+  }
+
+  function getBestReported() {
+    try { return parseInt((self.localStorage && localStorage.getItem("cidi_best_reported")) || "-1", 10); }
+    catch (e) { return -1; }
+  }
+  function maybeNewRecord(lvl) {
+    // EVENT: reporta o MAIOR nivel alcancado (recorde). So sobe, nunca cai.
+    if (lvl > getBestReported()) {
+      CidiReport.tournament(lvl, function () {
+        try { localStorage.setItem("cidi_best_reported", String(lvl)); } catch (e) {}
+      });
+    }
+  }
+
+  function maybeClaimMedal(lvl) {
+    // MEDAL (durante o jogo): reivindica 1x ao cruzar o alvo. Gatilho leve (sem rede extra).
+    try { if (localStorage.getItem("cidi_medal_done") === "1") return; } catch (e) {}
+    if (lvl >= MEDAL_LEVEL) {
+      CidiReport.medalClaim(function () {
+        try { localStorage.setItem("cidi_medal_done", "1"); } catch (e) {}
+      });
+    }
+  }
+
+  // MEDAL (startup): a plataforma e a fonte da verdade, nao a flag local.
+  // Consulta ownership e reconcilia -> desbloqueia jogador "preso" e cobre
+  // vitoria antes do login / falha de rede / parou de jogar apos atingir o alvo.
+  function reconcileMedal(lvl) {
+    if (!loggedReady() || lvl == null || lvl < MEDAL_LEVEL) return; // nao elegivel
+    CidiReport.medalOwned(function (owned) {
+      if (owned === true) {
+        try { localStorage.setItem("cidi_medal_done", "1"); } catch (e) {}   // ja possui -> sincroniza
+        setStat("medal", "ja possui (sincronizado)");
+      } else if (owned === false) {
+        try { localStorage.removeItem("cidi_medal_done"); } catch (e) {}     // elegivel e NAO possui -> forca reenvio
+        CidiReport.medalClaim(function () { try { localStorage.setItem("cidi_medal_done", "1"); } catch (e) {} });
+      } else {
+        maybeClaimMedal(lvl);   // nao deu p/ checar ownership -> fluxo normal por flag
+      }
+    });
+  }
+
+  function checkProgress() {
+    readPlayerLevel(function (lvl) {
+      if (lvl == null) return;
+      if (lastLevelSeen == null) { lastLevelSeen = lvl; maybeNewRecord(lvl); maybeClaimMedal(lvl); return; }
+      if (lvl !== lastLevelSeen) {
+        lastLevelSeen = lvl;
+        tryReportDailyTask(lvl);   // TASK: 1x/dia em qualquer mudanca de nivel
+        maybeNewRecord(lvl);       // EVENT: reporta se for novo recorde de nivel
+        maybeClaimMedal(lvl);      // MEDAL: reivindica ao atingir MEDAL_LEVEL (1x)
+      }
+    });
+  }
+
+  function startProgressMonitor() {
+    if (progressTimer) return;
+    readPlayerLevel(function (lvl) {
+      lastLevelSeen = lvl;
+      maybeNewRecord(lvl);   // EVENT self-heal: reenvia recorde se nao confirmado
+      reconcileMedal(lvl);   // MEDAL self-heal: reconcilia contra a plataforma (ownership)
+      log("monitor de progresso ON (nivel base =", lvl, ") - task+event+medal ativos");
+    });
+    progressTimer = setInterval(checkProgress, 3000);
   }
 
   // showCidiRewarded(onReward, onFail)
@@ -338,6 +540,13 @@
       "   proxyClient: " + (proxyClient ? "criado" : "-"),
       "   loggedIn: " + yn(loggedIn),
       "",
+      "== SDKs (envio) ==",
+      "TASK : " + cidiStat.task,
+      "EVENT: " + cidiStat.event,
+      "MEDAL: " + cidiStat.medal,
+      "nivel visto: " + (lastLevelSeen == null ? "-" : lastLevelSeen) +
+        "  recorde rep.: " + getBestReported() + "  alvo medalha: " + MEDAL_LEVEL,
+      "",
       "API key: " + (CIDI_API_KEY ? CIDI_API_KEY.substr(0, 10) + "..." : "-")
     ];
     return lines.join("\n");
@@ -377,6 +586,10 @@
         '<div id="cidi-dbg-head"><span>CiDi Debug</span><span id="cidi-dbg-close">&#10006;</span></div>' +
         '<pre id="cidi-dbg-state"></pre>' +
         '<div id="cidi-dbg-actions"><button id="cidi-dbg-test">Testar an&uacute;ncio</button>' +
+        '<button id="cidi-dbg-task">Task</button>' +
+        '<button id="cidi-dbg-event">Event</button>' +
+        '<button id="cidi-dbg-medal">Medal</button>' +
+        '<button id="cidi-dbg-own">Own?</button>' +
         '<button id="cidi-dbg-reload">Atualizar</button></div>' +
         '<pre id="cidi-dbg-log"></pre>';
       document.body.appendChild(panel);
@@ -394,8 +607,19 @@
           function () { log("DEBUG: rewarded -> FAIL (sem premio)"); }
         );
       });
+      document.getElementById("cidi-dbg-task").addEventListener("click", function () {
+        log("DEBUG: teste manual TASK"); CidiReport.task({ test: 1, level: lastLevelSeen });
+      });
+      document.getElementById("cidi-dbg-event").addEventListener("click", function () {
+        log("DEBUG: teste manual EVENT"); CidiReport.tournament(lastLevelSeen != null ? lastLevelSeen : 1);
+      });
+      document.getElementById("cidi-dbg-medal").addEventListener("click", function () {
+        log("DEBUG: teste manual MEDAL"); CidiReport.medalClaim();
+      });
+      document.getElementById("cidi-dbg-own").addEventListener("click", function () {
+        log("DEBUG: consulta ownership"); CidiReport.medalOwned(function (o) { log("ownership =", o); });
+      });
       refreshDbgPanel();
-      log("painel DBG pronto (botao no canto inferior esquerdo)");
     } catch (e) { warn("falha ao montar DBG:", e); }
   }
   if (document.body) buildDebugButton();
@@ -405,5 +629,5 @@
   setTimeout(buildDebugButton, 4000);
 
   loadCidiSdk();
-  log("pronto [build: resume-v7]. rewarded/video -> CiDi real (key:", CIDI_API_KEY === "CIDI_PLACEHOLDER_KEY" ? "PLACEHOLDER!" : "ok", ")");
+  log("pronto [build: medal-v2]. rewarded/video -> CiDi real (key:", CIDI_API_KEY === "CIDI_PLACEHOLDER_KEY" ? "PLACEHOLDER!" : "ok", ")");
 })();
