@@ -319,7 +319,10 @@
   function tryReportDailyTask(level) {
     try {
       var today = bizDateToday();
-      if (self.localStorage && localStorage.getItem("cidi_task_date") === today) return; // ja hoje
+      if (self.localStorage && localStorage.getItem("cidi_task_date") === today) {
+        setStat("task", "ja enviada hoje");   // 1x/dia: nao repete
+        return;
+      }
       // grava a data SO no sucesso (senao uma falha trancaria o dia inteiro)
       CidiReport.task({ level: level }, function () {
         try { localStorage.setItem("cidi_task_date", today); } catch (e) {}
@@ -385,6 +388,10 @@
     if (progressTimer) return;
     readPlayerLevel(function (lvl) {
       lastLevelSeen = lvl;
+      try {
+        setStat("task", (localStorage.getItem("cidi_task_date") === bizDateToday())
+          ? "ja enviada hoje" : "aguardando vitoria de nivel");
+      } catch (e) {}
       maybeNewRecord(lvl);   // EVENT self-heal: reenvia recorde se nao confirmado
       reconcileMedal(lvl);   // MEDAL self-heal: reconcilia contra a plataforma (ownership)
       log("monitor de progresso ON (nivel base =", lvl, ") - task+event+medal ativos");
@@ -629,5 +636,5 @@
   setTimeout(buildDebugButton, 4000);
 
   loadCidiSdk();
-  log("pronto [build: medal-v3]. rewarded/video -> CiDi real (key:", CIDI_API_KEY === "CIDI_PLACEHOLDER_KEY" ? "PLACEHOLDER!" : "ok", ")");
+  log("pronto [build: task-v3]. rewarded/video -> CiDi real (key:", CIDI_API_KEY === "CIDI_PLACEHOLDER_KEY" ? "PLACEHOLDER!" : "ok", ")");
 })();
