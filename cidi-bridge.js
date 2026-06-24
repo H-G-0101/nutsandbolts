@@ -265,7 +265,7 @@
      O plugin LocalStorage do C3 grava via localforage no IndexedDB:
        banco = "c3-localstorage-" + ProjectUniqueId , store = "keyvaluepairs"
      nivel do jogador = Arr_PlayerData.At(0,0) (chave "playerdata", c2array). */
-  var MEDAL_LEVEL = 2;             // condicao da medalha. TESTE=2 -> depois trocar p/ 100
+  var MEDAL_LEVEL = 5;             // condicao da medalha. TESTE=5 -> depois trocar p/ 100
   var IDB_DB_FALLBACK = "c3-localstorage-91bvv5ns4ka";
   var IDB_STORE = "keyvaluepairs";
   var idbDbName = null;
@@ -629,5 +629,5 @@
   setTimeout(buildDebugButton, 4000);
 
   loadCidiSdk();
-  log("pronto [build: medal-v2]. rewarded/video -> CiDi real (key:", CIDI_API_KEY === "CIDI_PLACEHOLDER_KEY" ? "PLACEHOLDER!" : "ok", ")");
+  log("pronto [build: medal-v3]. rewarded/video -> CiDi real (key:", CIDI_API_KEY === "CIDI_PLACEHOLDER_KEY" ? "PLACEHOLDER!" : "ok", ")");
 })();
