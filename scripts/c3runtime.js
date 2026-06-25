@@ -1564,7 +1564,6 @@ self.C3_ExpressionFuncs = [
 		},
 		() => 1,
 		() => 4,
-		() => 2000,
 		() => "Bonus",
 		() => "bonus",
 		() => 5,
@@ -1830,24 +1829,14 @@ self.C3_ExpressionFuncs = [
 			return () => (and("YOU TOOK ", v0.GetValue()) + " SECONDS");
 		},
 		() => "+20",
-		p => {
-			const n0 = p._GetNode(0);
-			return () => mod(n0.ExpObject(0, 0), 2);
-		},
-		() => "complete_bonus",
-		() => "AN3",
-		() => 62,
+		() => 100,
 		p => {
 			const n0 = p._GetNode(0);
 			return () => add(n0.ExpObject(0, 0), 1);
 		},
 		p => {
-			const n0 = p._GetNode(0);
-			return () => add(n0.ExpObject(4, 0), 20);
-		},
-		p => {
 			const f0 = p._GetNode(0).GetBoundMethod();
-			return () => and("Lv", Math.round(f0(10, 62)));
+			return () => and("Lv", Math.round(f0(10, 100)));
 		},
 		() => "Particle",
 		() => 0.6,
@@ -1904,6 +1893,8 @@ self.C3_ExpressionFuncs = [
 		() => 5010,
 		() => "AN1",
 		() => "AN2",
+		() => "AN3",
+		() => "complete_bonus",
 		p => {
 			const f0 = p._GetNode(0).GetBoundMethod();
 			return () => (f0("BG") - 450);
@@ -2029,6 +2020,11 @@ self.C3_ExpressionFuncs = [
 			return () => add(n0.ExpObject(6, 0), 3);
 		},
 		() => "Complete_Popup",
+		() => 62,
+		p => {
+			const f0 = p._GetNode(0).GetBoundMethod();
+			return () => and("Lv", Math.round(f0(10, 62)));
+		},
 		() => "Gems Popup (CiDi)",
 		() => "2.Home",
 		() => "1",
