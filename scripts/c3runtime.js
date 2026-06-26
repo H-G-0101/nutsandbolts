@@ -1836,7 +1836,7 @@ self.C3_ExpressionFuncs = [
 		},
 		p => {
 			const f0 = p._GetNode(0).GetBoundMethod();
-			return () => and("Lv", Math.round(f0(10, 100)));
+			return () => and("Lv", Math.round(f0(30, 100)));
 		},
 		() => "Particle",
 		() => 0.6,
