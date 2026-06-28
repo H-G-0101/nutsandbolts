@@ -265,7 +265,7 @@
      O plugin LocalStorage do C3 grava via localforage no IndexedDB:
        banco = "c3-localstorage-" + ProjectUniqueId , store = "keyvaluepairs"
      nivel do jogador = Arr_PlayerData.At(0,0) (chave "playerdata", c2array). */
-  var MEDAL_LEVEL = 5;             // condicao da medalha. TESTE=5 -> depois trocar p/ 100
+  var MEDAL_LEVEL = 100;           // condicao da medalha (PRODUCAO)
   var IDB_DB_FALLBACK = "c3-localstorage-91bvv5ns4ka";
   var IDB_STORE = "keyvaluepairs";
   var idbDbName = null;
@@ -629,12 +629,15 @@
       refreshDbgPanel();
     } catch (e) { warn("falha ao montar DBG:", e); }
   }
-  if (document.body) buildDebugButton();
-  else document.addEventListener("DOMContentLoaded", buildDebugButton);
-  // reforco: tenta de novo apos o load (caso o body so exista depois)
-  setTimeout(buildDebugButton, 1500);
-  setTimeout(buildDebugButton, 4000);
+  // DEBUG: troque para true se precisar do painel DBG de volta
+  var DEBUG_ENABLED = false;
+  if (DEBUG_ENABLED) {
+    if (document.body) buildDebugButton();
+    else document.addEventListener("DOMContentLoaded", buildDebugButton);
+    setTimeout(buildDebugButton, 1500);
+    setTimeout(buildDebugButton, 4000);
+  }
 
   loadCidiSdk();
-  log("pronto [build: task-v3]. rewarded/video -> CiDi real (key:", CIDI_API_KEY === "CIDI_PLACEHOLDER_KEY" ? "PLACEHOLDER!" : "ok", ")");
+  log("pronto [build: medal100-nodbg-v4]. rewarded/video -> CiDi real (key:", CIDI_API_KEY === "CIDI_PLACEHOLDER_KEY" ? "PLACEHOLDER!" : "ok", ")");
 })();
