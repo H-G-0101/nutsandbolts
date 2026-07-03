@@ -2017,7 +2017,7 @@ self.C3_ExpressionFuncs = [
 		() => "equipment2",
 		p => {
 			const n0 = p._GetNode(0);
-			return () => add(n0.ExpObject(6, 0), 3);
+			return () => add(n0.ExpObject(6, 0), 2);
 		},
 		() => "Complete_Popup",
 		() => 62,
