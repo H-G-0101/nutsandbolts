@@ -144,6 +144,12 @@
     } catch (e) { return false; }
   }
 
+  // tempToken so existe quando o jogo e aberto DE VERDADE pela plataforma Pi/CiDi.
+  // Sem ele, e teste manual (URL direta em navegador comum) -> nao e um jogador real do Pi.
+  function hasPiToken() {
+    try { return /tempToken=/.test((location.search || "") + (location.hash || "")); } catch (e) { return false; }
+  }
+
   function injectScript(src, onload, onerror) {
     var s = document.createElement("script");
     s.src = src; s.async = false;
@@ -454,8 +460,14 @@
       // Em dev (localhost/file) concede direto, com o spinner aparecendo ~0.8s p/ voce ver o indicador.
       log("DEV: CiDiSDK ausente -> concedendo recompensa p/ teste");
       setTimeout(function () { clearTimeout(safety); grant(); }, 800);
+    } else if (!hasPiToken()) {
+      // Sem tempToken = fora do fluxo real do Pi (teste manual pela URL, navegador comum).
+      // Nao e um jogador real -> concede pra agilizar teste, sem exigir Pi Browser/login.
+      log("TESTE (sem tempToken na URL): concedendo recompensa p/ agilizar teste fora do Pi Browser");
+      setTimeout(function () { clearTimeout(safety); grant(); }, 800);
     } else {
-      // Producao sem SDK OU sem login da CiDi -> falha rapida (nao pendura o jogo).
+      // tempToken presente (sessao real do Pi) mas SDK/login falhou -> falha de verdade,
+      // nao mascarar isso p/ jogador real (precisamos do sinal honesto p/ diagnosticar).
       clearTimeout(safety);
       warn("sem anuncio: CiDiSDK ausente ou login nao concluido (loggedIn=" + loggedIn + ")");
       deny("no-sdk-or-login");
@@ -639,5 +651,5 @@
   }
 
   loadCidiSdk();
-  log("pronto [build: medal100-nodbg-v4]. rewarded/video -> CiDi real (key:", CIDI_API_KEY === "CIDI_PLACEHOLDER_KEY" ? "PLACEHOLDER!" : "ok", ")");
+  log("pronto [build: medal100-testad-v5]. rewarded/video -> CiDi real (key:", CIDI_API_KEY === "CIDI_PLACEHOLDER_KEY" ? "PLACEHOLDER!" : "ok", ")");
 })();
