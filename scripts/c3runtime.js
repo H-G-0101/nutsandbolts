@@ -1836,10 +1836,10 @@ self.C3_ExpressionFuncs = [
 		},
 		() => "complete_bonus",
 		() => "AN3",
-		() => 63,
+		() => 64,
 		p => {
 			const n0 = p._GetNode(0);
-			return () => add(n0.ExpObject(0, 0), 1);
+			return () => { const v = add(n0.ExpObject(0, 0), 1); return v > 63 ? 20 + Math.floor(Math.random() * 44) : v; };
 		},
 		p => {
 			const n0 = p._GetNode(0);
