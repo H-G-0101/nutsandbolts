@@ -1,0 +1,43 @@
+# Cache longo: assets que so mudam quando trocam de nome/conteudo
+/images/*
+  Cache-Control: public, max-age=2592000, stale-while-revalidate=86400
+
+/media/*
+  Cache-Control: public, max-age=2592000, stale-while-revalidate=86400
+
+/fonts/*
+  Cache-Control: public, max-age=2592000, stale-while-revalidate=86400
+
+/icons/*
+  Cache-Control: public, max-age=2592000, stale-while-revalidate=86400
+
+/box2d.wasm
+  Cache-Control: public, max-age=2592000, stale-while-revalidate=86400
+
+/box2d.wasm.js
+  Cache-Control: public, max-age=2592000, stale-while-revalidate=86400
+
+/workermain.js
+  Cache-Control: public, max-age=2592000, stale-while-revalidate=86400
+
+# Sempre revalidar: correcoes precisam chegar nos jogadores sem atraso
+/scripts/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+/data.json
+  Cache-Control: public, max-age=0, must-revalidate
+
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/offline.json
+  Cache-Control: public, max-age=0, must-revalidate
+
+/appmanifest.json
+  Cache-Control: public, max-age=0, must-revalidate
+
+/cidi-bridge.js
+  Cache-Control: public, max-age=0, must-revalidate

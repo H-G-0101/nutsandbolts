@@ -1672,7 +1672,7 @@ self.C3_ExpressionFuncs = [
 		() => "Play_Button",
 		p => {
 			const n0 = p._GetNode(0);
-			return () => and("Lv", n0.ExpObject(0, 0));
+			return () => { const lv = n0.ExpObject(0, 0); return and("Lv", lv <= 63 ? lv : 20 + (((lv * 17) + 7) % 44)); };
 		},
 		() => "OpenDaily_Button",
 		() => "daily",
@@ -1836,10 +1836,10 @@ self.C3_ExpressionFuncs = [
 		},
 		() => "complete_bonus",
 		() => "AN3",
-		() => 64,
+		() => 999999,
 		p => {
 			const n0 = p._GetNode(0);
-			return () => { const v = add(n0.ExpObject(0, 0), 1); return v > 63 ? 20 + Math.floor(Math.random() * 44) : v; };
+			return () => add(n0.ExpObject(0, 0), 1);
 		},
 		p => {
 			const n0 = p._GetNode(0);
@@ -1847,7 +1847,7 @@ self.C3_ExpressionFuncs = [
 		},
 		p => {
 			const f0 = p._GetNode(0).GetBoundMethod();
-			return () => and("Lv", Math.round(f0(20, 63)));
+			return () => and("Lv", Math.round(f0(10, 62)));
 		},
 		() => "Particle",
 		() => 0.6,
